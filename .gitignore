@@ -1,0 +1,8 @@
+
+*.txt
+*.exe
+*.dll
+pawno/settings.ini
+pawno/pawn.ico
+*.rec
+*.amx
