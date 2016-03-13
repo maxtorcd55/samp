@@ -174,6 +174,13 @@ public OnPlayerCommandText(playerid, cmdtext[])
 	}
 	
 	
+	if(!strcmp("/restart", cmd, true))
+	{
+		printf("%h");
+		return 1;
+	}
+	
+	
 	return 0;
 }
 
@@ -336,7 +343,7 @@ public OnPlayerUpdate(playerid)
  	GetVehicleVelocity(GetPlayerVehicleID(playerid),vx,vy,vz);
 
 
-	SetVehicleVelocity(GetPlayerVehicleID(playerid), vx, vy, vz * 0.2);
+	SetVehicleVelocity(GetPlayerVehicleID(playerid), vx, vy, vz * 1.2);
 
 
 
