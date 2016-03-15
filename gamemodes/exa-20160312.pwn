@@ -7,19 +7,15 @@
 #include <a_http>
 #include <exa>
 
-forward GetPlayerCountry(index, response_code, data[]);
+forward GetPlayerLoc(index, response_code, data[]);
 
-
-
-//#define dcmd(%1,%2,%3) if (!strcmp((%3)[1], #%1, true, (%2)) && ((((%3)[(%2) + 1] == '\0') && (dcmd_%1(playerid, ""))) || (((%3)[(%2) + 1] == ' ') && (dcmd_%1(playerid, (%3)[(%2) + 2]))))) return 1
-
-new ScriptVersion[12] = "2016/03/12";
+#define dcmd(%1,%2,%3) if (!strcmp((%3)[1], #%1, true, (%2)) && ((((%3)[(%2) + 1] == '\0') && (dcmd_%1(playerid, ""))) || (((%3)[(%2) + 1] == ' ') && (dcmd_%1(playerid, (%3)[(%2) + 2]))))) return 1
 
 
 
 main()
 {
-	printf("eXa Main - %s", ScriptVersion);
+	printf("eXa Main - 2016/03/12");
 }
 
 
@@ -41,21 +37,48 @@ public OnPlayerRequestClass(playerid, classid)
 
 public OnPlayerConnect(playerid)
 {
+
+
+
 	new plrIP[16];
     GetPlayerIp(playerid, plrIP, sizeof(plrIP));
     SetPVarString(playerid,"ip",plrIP);
     
+    
+   	new url[64];
+	format(url,sizeof(url),"formexa.comxa.com/loc.php?ip=%s",plrIP);
+    HTTP(playerid, HTTP_GET, url, "", "GetPlayerLoc");
+    
     new string[64];
 	format(string,sizeof(string),"%s (%d) has joined the server. [%s]",GetPlyName(playerid),playerid,plrIP);
-    SendClientMessage(playerid, 0x00FFFFAA, string);
+    //SendClientMessage(playerid, 0x00FFFFAA, string);
+    
+    SendDeathMessage(-1, playerid, 200);
 	return 1;
 }
 
 
+public GetPlayerLoc(index, response_code, data[])
+{
+    new string[128];
+    if(response_code == 200) //Did the request succeed?
+    {
+        
+		format(string,sizeof(string),"%s (%d) has joined the server. [%s]",GetPlyName(index),index,data);
+    	
+    }
+    else
+    {
+        format(string,sizeof(string),"%s (%d) has joined the server.",GetPlyName(index),index);
+    }
+    
+    SendClientMessageToAll(0x00FFFFAA, string);
+}
 
 
 public OnPlayerDisconnect(playerid, reason)
 {
+    SendDeathMessage(-1, playerid, 201);
 	return 1;
 }
 
@@ -66,11 +89,13 @@ public OnPlayerSpawn(playerid)
 
 public OnPlayerDeath(playerid, killerid, reason)
 {
+    SendDeathMessage(killerid, playerid, reason);
 	return 1;
 }
 
 public OnVehicleSpawn(vehicleid)
 {
+    DestroyVehicle(vehicleid);
 	return 1;
 }
 
@@ -129,10 +154,11 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		 	new Float:x, Float:y, Float:z, Float: Angle;
 	 		GetPlayerPos(playerid, x, y, z);
 			GetPlayerFacingAngle(playerid, Angle);
-			new Veh = AddStaticVehicleEx(VehModel, x ,y ,z , Angle, VehColor[0], VehColor[1], 60*5);
+			new Veh = AddStaticVehicleEx(VehModel, x ,y ,z , Angle, VehColor[0], VehColor[1], 60);
 			if(GetPlayerInterior(playerid)) LinkVehicleToInterior(Veh,GetPlayerInterior(playerid));
 			SetVehicleVirtualWorld(Veh,GetPlayerVirtualWorld(playerid));
 			PutPlayerInVehicle(playerid,Veh,0);
+			SetVehicleHealth(Veh, 9999999999);
 			
 			new string[64];
 			format(string,sizeof(string),"Vehicle spawned [%s]",VehName[VehModel-400]);
@@ -146,21 +172,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		return 1;
 	}
 	
-	
-	if((!strcmp("/gametext", cmd, true)))
-	{
 
-		new ply, String[30], time, style;
-		if(!sscanf(params, "usdd" ,ply,String,time,style))
-		{
-
-			GameTextForPlayer(ply, String, time, style); //toon gametext aan spayer
-		}
-
-
-		return 1;
-	}
-	
 	
 	if(!strcmp("/getvelocity", cmd, true))
 	{
@@ -168,17 +180,81 @@ public OnPlayerCommandText(playerid, cmdtext[])
  		GetVehicleVelocity(GetPlayerVehicleID(playerid),vx,vy,vz);
  		
  		new string[64];
-		format(string,sizeof(string),"%.2f %.2f %.2f",vx,vy,vz);
+		format(string,sizeof(string),"x: %.2f, y: %.2f, Z: %.2f",vx,vy,vz);
 		SendClientMessage(playerid, 0x00FF00AA, string); //toon player velocity
 		return 1;
 	}
 	
 	
-	if(!strcmp("/restart", cmd, true))
+	if(!strcmp("/getvehicleid", cmd, true))
 	{
-		printf("%h");
+ 		new string[64];
+		format(string,sizeof(string),"Vehicle id: %d",GetPlayerVehicleID(playerid));
+		SendClientMessage(playerid, 0x00FF00AA, string); //toon player vehid
 		return 1;
 	}
+	
+	if(!strcmp("/restart", cmd, true))
+	{
+		new string[2500];
+		for(new i = 0; i < 200; i++)
+		{
+		    format(string,sizeof(string),"%sAAAAAAAAAAA",string);
+		}
+		
+		printf(string);
+		return 1;
+	}
+	
+	if(!strcmp("/kill", cmd, true))
+	{
+	    new ply;
+	    if(!strlen(params)){SetPlayerHealth(playerid,0.0);}
+		else if(!sscanf(params, "u" ,ply))
+		{
+		    if(IsPlayerConnected(ply))
+		    {
+				SetPlayerHealth(ply,0.0);
+				new string[64];
+				format(string,sizeof(string),"Player %s (%d) is killed",GetPlyName(ply),ply);
+				SendClientMessage(playerid, 0x00FF00AA, string);
+			}
+			else
+			{
+			    SendClientMessage(playerid, 0xFF0000AA, "Player is not connected!");
+			}
+  		}
+  		else
+  		{
+  		    SendClientMessage(playerid, 0xFF0000AA, "/kill <name/id>");
+  		}
+		return 1;
+	}
+	
+	
+	if(!strcmp("/changeveh", cmd, true))
+	{
+	    new veh;
+		if(!sscanf(params, "d" ,veh))
+		{
+ 			new Float:vx, Float:vy, Float:vz;
+		 	GetVehicleVelocity(GetPlayerVehicleID(playerid), vx, vy, vz);
+			new Float:x, Float:y, Float:z, Float: Angle;
+	 		GetPlayerPos(playerid, x, y, z);
+			GetVehicleZAngle(GetPlayerVehicleID(playerid), Angle);
+			DestroyVehicle(GetPlayerVehicleID(playerid));
+			new Veh = AddStaticVehicleEx(veh, x ,y ,z , Angle, -1, -1, 60*5);
+			if(GetPlayerInterior(playerid)) LinkVehicleToInterior(Veh,GetPlayerInterior(playerid));
+			SetVehicleVirtualWorld(Veh,GetPlayerVirtualWorld(playerid));
+			PutPlayerInVehicle(playerid,Veh,0);
+			SetVehicleVelocity(Veh, vx, vy, vz);
+  		}
+		return 1;
+	}
+	
+	
+	
+	
 	
 	
 	return 0;
@@ -337,16 +413,13 @@ public OnPlayerUpdate(playerid)
 	fwrite(handle, string);
  	fclose(handle);
 	*/
+	
+    new Float:health;
+    GetVehicleHealth(GetPlayerVehicleID(playerid), health);
+	new string[512];
+	format(string,sizeof(string),"%.0f",health);
 
-
-	new Float:vx,Float:vy,Float:vz;
- 	GetVehicleVelocity(GetPlayerVehicleID(playerid),vx,vy,vz);
-
-
-	SetVehicleVelocity(GetPlayerVehicleID(playerid), vx, vy, vz * 1.2);
-
-
-
+	//GameTextForPlayer(playerid, string, 500, 3);
 	return 1;
 }
 
