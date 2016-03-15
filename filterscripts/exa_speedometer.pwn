@@ -6,6 +6,9 @@
 
 new Text:SpeedoMeter[MAX_PLAYERS];
 
+new PlayerOnlineID[MAX_PLAYERS];
+new PlayersOnline;
+
 
 #if defined FILTERSCRIPT
 
@@ -43,8 +46,45 @@ public OnPlayerConnect(playerid)
 	//TextDrawTextSize(SpeedoMeter[playerid], 20.1, 20.1);
 	TextDrawUseBox(SpeedoMeter[playerid], 1);
     TextDrawBoxColor(SpeedoMeter[playerid], 0x000000AA);
+    
+    PlayersOnline++;
+   	new count;
+	for(new x=0; x< MAX_PLAYERS; x++)
+	{
+		if(IsPlayerConnected(x))
+		{
+			if(!IsPlayerNPC(x))
+    		{
+	        	PlayerOnlineID[count] = x;
+				count++;
+			}
+		}
+	}
+    
 	return 1;
 }
+
+
+public OnPlayerDisconnect(playerid, reason)
+{
+    PlayersOnline--;
+   	new count;
+	for(new x=0; x< MAX_PLAYERS; x++)
+	{
+		if(IsPlayerConnected(x))
+		{
+			if(!IsPlayerNPC(x))
+    		{
+	        	PlayerOnlineID[count] = x;
+				count++;
+			}
+		}
+	}
+
+    return 1;
+}
+
+
 
 public OnPlayerRequestClass(playerid, classid)
 {
@@ -76,23 +116,30 @@ forward SpeedoUpdate();
 public SpeedoUpdate()
 {
 
-	if(IsPlayerConnected(PlayerSpeedUpdate))
+	if(IsPlayerConnected(PlayerOnlineID[PlayerSpeedUpdate]))
 	{
 		new Float:speed_x, Float:speed_y, Float:speed_z;
-  		if(GetVehicleVelocity(GetPlayerVehicleID(PlayerSpeedUpdate), speed_x, speed_y, speed_z))
+  		if(GetVehicleVelocity(GetPlayerVehicleID(PlayerOnlineID[PlayerSpeedUpdate]), speed_x, speed_y, speed_z))
   		{
 			new speedstring[128];
 			new PlayerSpeed = floatround(floatsqroot(((speed_x * speed_x) + (speed_y * speed_y)) + (speed_z * speed_z)) * 158.179, floatround_round);
 			format(speedstring, sizeof(speedstring), "Speed: %3d km/h~n~",PlayerSpeed);
- 		   	TextDrawSetString(SpeedoMeter[PlayerSpeedUpdate], speedstring);
-			TextDrawShowForPlayer(PlayerSpeedUpdate, SpeedoMeter[PlayerSpeedUpdate]);
+ 		   	TextDrawSetString(SpeedoMeter[PlayerOnlineID[PlayerSpeedUpdate]], speedstring);
+			TextDrawShowForPlayer(PlayerOnlineID[PlayerSpeedUpdate], SpeedoMeter[PlayerOnlineID[PlayerSpeedUpdate]]);
 		}
 		else
 		{
-  			TextDrawHideForPlayer(PlayerSpeedUpdate, SpeedoMeter[PlayerSpeedUpdate]);
+  			TextDrawHideForPlayer(PlayerOnlineID[PlayerSpeedUpdate], SpeedoMeter[PlayerOnlineID[PlayerSpeedUpdate]]);
 		}
 
     }
+
+	if(PlayerSpeedUpdate >= PlayersOnline)
+	{
+	    PlayerSpeedUpdate=0;
+	}
+
+
 
     
     SetTimer("SpeedoUpdate", 100, false);
@@ -100,16 +147,6 @@ public SpeedoUpdate()
 }
 
 
-
-GetPlayersOnServer() {
-	new count;
-	for(new x=0; x< MAX_PLAYERS; x++) { //x = MAX_PLAYERS
-	  if(IsPlayerConnected(x))) {
-			count++;
-		}
-	}
-	return count;
-}
 
 
 
