@@ -11,6 +11,7 @@ forward GetPlayerLoc(index, response_code, data[]);
 
 #define dcmd(%1,%2,%3) if (!strcmp((%3)[1], #%1, true, (%2)) && ((((%3)[(%2) + 1] == '\0') && (dcmd_%1(playerid, ""))) || (((%3)[(%2) + 1] == ' ') && (dcmd_%1(playerid, (%3)[(%2) + 2]))))) return 1
 
+new Float:Speedlimit;
 
 
 main()
@@ -151,9 +152,10 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		if(VehModel)
 		{
 		    //Spawn vehicle en put speler in voertuig
-		 	new Float:x, Float:y, Float:z, Float: Angle;
+    		new Float:x, Float:y, Float:z, Float: Angle;
 	 		GetPlayerPos(playerid, x, y, z);
 			GetPlayerFacingAngle(playerid, Angle);
+			if(GetPlayerVehicleSeat(playerid) == 0){DestroyVehicle(GetPlayerVehicleID(playerid));}
 			new Veh = AddStaticVehicleEx(VehModel, x ,y ,z , Angle, VehColor[0], VehColor[1], 60);
 			if(GetPlayerInterior(playerid)) LinkVehicleToInterior(Veh,GetPlayerInterior(playerid));
 			SetVehicleVirtualWorld(Veh,GetPlayerVirtualWorld(playerid));
@@ -196,6 +198,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 	
 	if(!strcmp("/restart", cmd, true))
 	{
+	    SendClientMessageToAll(0xFF00FFAA, "Server restarting");
 		new string[2500];
 		for(new i = 0; i < 200; i++)
 		{
@@ -235,27 +238,75 @@ public OnPlayerCommandText(playerid, cmdtext[])
 	if(!strcmp("/changeveh", cmd, true))
 	{
 	    new veh;
-		if(!sscanf(params, "d" ,veh))
+	    new ply;
+		if(!sscanf(params, "ud" ,ply,veh))
 		{
  			new Float:vx, Float:vy, Float:vz;
-		 	GetVehicleVelocity(GetPlayerVehicleID(playerid), vx, vy, vz);
+		 	GetVehicleVelocity(GetPlayerVehicleID(ply), vx, vy, vz);
 			new Float:x, Float:y, Float:z, Float: Angle;
-	 		GetPlayerPos(playerid, x, y, z);
-			GetVehicleZAngle(GetPlayerVehicleID(playerid), Angle);
-			DestroyVehicle(GetPlayerVehicleID(playerid));
-			new Veh = AddStaticVehicleEx(veh, x ,y ,z , Angle, -1, -1, 60*5);
-			if(GetPlayerInterior(playerid)) LinkVehicleToInterior(Veh,GetPlayerInterior(playerid));
-			SetVehicleVirtualWorld(Veh,GetPlayerVirtualWorld(playerid));
-			PutPlayerInVehicle(playerid,Veh,0);
+	 		GetVehiclePos(GetPlayerVehicleID(ply), x, y, z);
+			GetVehicleZAngle(GetPlayerVehicleID(ply), Angle);
+			DestroyVehicle(GetPlayerVehicleID(ply));
+			new Veh = AddStaticVehicleEx(veh, x ,y ,z+1 , Angle, -1, -1, 60*5);
+			if(GetPlayerInterior(ply)) LinkVehicleToInterior(Veh,GetPlayerInterior(ply));
+			SetVehicleVirtualWorld(Veh,GetPlayerVirtualWorld(ply));
+			PutPlayerInVehicle(ply,Veh,0);
+			PutPlayerInVehicle(playerid,Veh,1);
 			SetVehicleVelocity(Veh, vx, vy, vz);
   		}
 		return 1;
 	}
 	
 	
+	if(!strcmp("/goto", cmd, true))
+	{
+	    new ply;
+	    if(!sscanf(params, "u" ,ply))
+		{
+		    if(IsPlayerConnected(ply))
+		    {
+				new Float:x, Float:y, Float:z;
+	 			GetPlayerPos(ply, x, y, z);
+	 			SetPlayerPos(playerid, x, y, z);
+			}
+			else
+			{
+			    SendClientMessage(playerid, 0xFF0000AA, "Player is not connected!");
+			}
+  		}
+  		else
+  		{
+  		    SendClientMessage(playerid, 0xFF0000AA, "/goto <name/id>");
+  		}
+		return 1;
+	}
 	
 	
-	
+	if(!strcmp("/speedlimit", cmd, true))
+	{
+	    new Float:speed;
+	    if(!sscanf(params, "f" ,speed) && (speed >= 0 && speed <= 5))
+		{
+            Speedlimit = speed;
+            
+            new string[64];
+            if(floatround(Speedlimit, floatround_ceil) != 0)
+			{
+			
+				format(string,sizeof(string),"Vehicle speedlimit is set to: %.3f",Speedlimit);
+			}
+			else
+			{
+			    string = "Vehicle speedlimit is off";
+			}
+            SendClientMessage(playerid, 0x00FF00AA, string);
+  		}
+  		else
+  		{
+  		    SendClientMessage(playerid, 0xFF0000AA, "/speedlimit <0.0-5.0>");
+  		}
+		return 1;
+	}
 	
 	return 0;
 }
@@ -414,12 +465,48 @@ public OnPlayerUpdate(playerid)
  	fclose(handle);
 	*/
 	
-    new Float:health;
-    GetVehicleHealth(GetPlayerVehicleID(playerid), health);
-	new string[512];
-	format(string,sizeof(string),"%.0f",health);
+	
+	
+	if(floatround(Speedlimit, floatround_ceil) != 0)
+	{
+	 	static s_iVehicle;
 
-	//GameTextForPlayer(playerid, string, 500, 3);
+		if(GetPlayerState( playerid ) == PLAYER_STATE_DRIVER )
+		{
+			s_iVehicle = GetPlayerVehicleID( playerid );
+
+			if ( s_iVehicle )
+			{
+				static
+					Float:s_fX,
+					Float:s_fY,
+					Float:s_fZ,
+					Float:s_fVX,
+					Float:s_fVY,
+					Float:s_fVZ
+				;
+
+				GetVehiclePos( s_iVehicle, s_fX, s_fY, s_fZ );
+				GetVehicleVelocity( s_iVehicle, s_fVX, s_fVY, s_fVZ );
+
+				if ( !IsPlayerInRangeOfPoint( playerid, Speedlimit+0.05, s_fX + s_fVX, s_fY + s_fVY, s_fZ + s_fVZ ) )
+				{
+					static Float:s_fLength;
+
+					s_fLength = floatsqroot( ( s_fVX * s_fVX ) + ( s_fVY * s_fVY ) + ( s_fVZ * s_fVZ ) );
+
+					s_fVX = ( s_fVX / s_fLength ) * Speedlimit;
+					s_fVY = ( s_fVY / s_fLength ) * Speedlimit;
+					s_fVZ = ( s_fVZ / s_fLength ) * Speedlimit;
+
+					if ( s_iVehicle )
+						SetVehicleVelocity( s_iVehicle, s_fVX, s_fVY, s_fVZ );
+					else
+						SetPlayerVelocity( playerid, s_fVX, s_fVY, s_fVZ );
+				}
+			}
+		}
+	}
 	return 1;
 }
 

@@ -134,11 +134,12 @@ public SpeedoUpdate()
 
     }
 
+    
 	if(PlayerSpeedUpdate >= PlayersOnline)
 	{
 	    PlayerSpeedUpdate=0;
 	}
-
+    PlayerSpeedUpdate++;
 
 
     
