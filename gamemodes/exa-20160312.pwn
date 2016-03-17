@@ -6,6 +6,7 @@
 #include <sscanf>
 #include <a_http>
 #include <exa>
+#include <djson>
 
 forward GetPlayerLoc(index, response_code, data[]);
 
@@ -22,12 +23,15 @@ main()
 
 public OnGameModeInit()
 {
-	AddPlayerClass(0, 1958.3783, 1343.1572, 15.3746, 269.1425, 0, 0, 0, 0, 0, 0);
+    djson_GameModeInit();
+	AddPlayerClass(0, 2046.4917,1335.0630,10.6719, 269.1425, 0, 0, 0, 0, 0, 0);
+	EnableStuntBonusForAll(0);
 	return 1;
 }
 
 public OnGameModeExit()
 {
+	djson_GameModeExit();
 	return 1;
 }
 
@@ -38,12 +42,36 @@ public OnPlayerRequestClass(playerid, classid)
 
 public OnPlayerConnect(playerid)
 {
+    new count = GetTickCount();
 
 
+    new fileString[64];
+	format(fileString,sizeof(fileString),"players/%s.ini",GetPlyName(playerid));
+	
+	new dateString[16],Year, Month, Day, Hour, Minute, Second;
+	getdate(Year, Month, Day);
+	gettime(Hour, Minute, Second);
+	
+	format(dateString,sizeof(dateString),"%d/%d/%d %02d:%02d:%02d",Year, Month, Day, Hour, Minute, Second);
+	if(!djIsSet(fileString,"FirstConnect",false))
+	{
+ 		djSet(fileString,"FirstConnect",dateString);
+    }
+    djSet(fileString,"LastConnect",dateString);
+    GivePlayerMoney(playerid, djInt(fileString,"Money"));
+    SetPlayerScore(playerid, djInt(fileString,"Score"));
 
 	new plrIP[16];
     GetPlayerIp(playerid, plrIP, sizeof(plrIP));
-    SetPVarString(playerid,"ip",plrIP);
+    
+    djSet(fileString,"Ip",plrIP);
+    
+    
+    SetPVarInt(playerid, "Admin", djInt(fileString,"Admin"));
+
+
+
+
     
     
    	new url[64];
@@ -55,6 +83,11 @@ public OnPlayerConnect(playerid)
     //SendClientMessage(playerid, 0x00FFFFAA, string);
     
     SendDeathMessage(-1, playerid, 200);
+    
+    
+    printf("Time taken to execute OnPlayerConnect: %d", GetTickCount() - count);
+    
+    printf("server time: %d", GetTickCount());
 	return 1;
 }
 
@@ -79,6 +112,8 @@ public GetPlayerLoc(index, response_code, data[])
 
 public OnPlayerDisconnect(playerid, reason)
 {
+    SavePlayerStats(playerid);
+	
     SendDeathMessage(-1, playerid, 201);
 	return 1;
 }
@@ -91,6 +126,11 @@ public OnPlayerSpawn(playerid)
 public OnPlayerDeath(playerid, killerid, reason)
 {
     SendDeathMessage(killerid, playerid, reason);
+  	if(killerid != INVALID_PLAYER_ID)
+    {
+        SetPlayerScore(killerid, GetPlayerScore(killerid) + 1);
+    }
+    
 	return 1;
 }
 
@@ -156,7 +196,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 	 		GetPlayerPos(playerid, x, y, z);
 			GetPlayerFacingAngle(playerid, Angle);
 			if(GetPlayerVehicleSeat(playerid) == 0){DestroyVehicle(GetPlayerVehicleID(playerid));}
-			new Veh = AddStaticVehicleEx(VehModel, x ,y ,z , Angle, VehColor[0], VehColor[1], 60);
+			new Veh = AddStaticVehicleEx(VehModel, x ,y ,z+1 , Angle, VehColor[0], VehColor[1], 60);
 			if(GetPlayerInterior(playerid)) LinkVehicleToInterior(Veh,GetPlayerInterior(playerid));
 			SetVehicleVirtualWorld(Veh,GetPlayerVirtualWorld(playerid));
 			PutPlayerInVehicle(playerid,Veh,0);
@@ -174,6 +214,24 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		return 1;
 	}
 	
+	
+	if(!strcmp("/trailer", cmd, true))
+	{
+	    new Float:merge,Float:hma,co;
+		if(!sscanf(params, "dff" ,co,merge,hma))
+		{
+		    new Float:x, Float:y, Float:z;
+	 		GetPlayerPos(playerid, x, y, z);
+	
+			for(new i = 0; i < co; i++)
+			{
+                AddStaticVehicle(606,x+2,y+(i*(merge+4.0)),z+hma,0,0,999999999);
+			}
+		}
+
+		return 1;
+	}
+
 
 	
 	if(!strcmp("/getvelocity", cmd, true))
@@ -198,14 +256,19 @@ public OnPlayerCommandText(playerid, cmdtext[])
 	
 	if(!strcmp("/restart", cmd, true))
 	{
-	    SendClientMessageToAll(0xFF00FFAA, "Server restarting");
-		new string[2500];
-		for(new i = 0; i < 200; i++)
+		for(new i = 0; i < MAX_PLAYERS; i++)
 		{
-		    format(string,sizeof(string),"%sAAAAAAAAAAA",string);
+		    if(IsPlayerConnected(i))
+		    {
+ 				SavePlayerStats(i);
+			}
 		}
-		
-		printf(string);
+	    
+	
+	
+	
+	    SendClientMessageToAll(0xFF00FFAA, "Server restarting in 5 seconds...");
+	    SetTimer("RestartServer", 5000, false);
 		return 1;
 	}
 	
@@ -311,8 +374,16 @@ public OnPlayerCommandText(playerid, cmdtext[])
 	return 0;
 }
 
-
-
+forward RestartServer();
+public RestartServer()
+{
+	new string[2500];
+	for(new i = 0; i < 200; i++)
+	{
+	    format(string,sizeof(string),"%sAAAAAAAAAAA",string);
+	}
+	printf(string);
+}
 
 
 
@@ -547,3 +618,26 @@ stock GetPlyName(playerid)
     GetPlayerName(playerid, name, sizeof(name));
 	return name;
 }
+
+
+stock GetPlyFile(playerid)
+{
+	//return players name
+	new name[MAX_PLAYER_NAME];
+    GetPlayerName(playerid, name, sizeof(name));
+    new fileString[64];
+	format(fileString,sizeof(fileString),"players/%s.ini",name);
+	return fileString;
+}
+
+SavePlayerStats(playerid)
+{
+	new fileString[64];
+	format(fileString,sizeof(fileString),"players/%s.ini",GetPlyName(playerid));
+	djSetInt(fileString,"Money", GetPlayerMoney(playerid));
+	djSetInt(fileString,"Score", GetPlayerScore(playerid));
+	djSetInt(fileString,"Admin", GetPVarInt(playerid, "Admin"));
+	return 1;
+}
+
+	

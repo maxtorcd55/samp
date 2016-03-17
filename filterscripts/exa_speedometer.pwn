@@ -9,6 +9,7 @@ new Text:SpeedoMeter[MAX_PLAYERS];
 new PlayerOnlineID[MAX_PLAYERS];
 new PlayersOnline;
 
+new PlayerOldSpeed[MAX_PLAYERS];
 
 #if defined FILTERSCRIPT
 
@@ -110,40 +111,51 @@ public OnGameModeInit()
 }
 
 
-new PlayerSpeedUpdate = 0;
-
 forward SpeedoUpdate();
 public SpeedoUpdate()
 {
-
-	if(IsPlayerConnected(PlayerOnlineID[PlayerSpeedUpdate]))
-	{
-		new Float:speed_x, Float:speed_y, Float:speed_z;
-  		if(GetVehicleVelocity(GetPlayerVehicleID(PlayerOnlineID[PlayerSpeedUpdate]), speed_x, speed_y, speed_z))
-  		{
-			new speedstring[128];
-			new PlayerSpeed = floatround(floatsqroot(((speed_x * speed_x) + (speed_y * speed_y)) + (speed_z * speed_z)) * 158.179, floatround_round);
-			format(speedstring, sizeof(speedstring), "Speed: %3d km/h~n~",PlayerSpeed);
- 		   	TextDrawSetString(SpeedoMeter[PlayerOnlineID[PlayerSpeedUpdate]], speedstring);
-			TextDrawShowForPlayer(PlayerOnlineID[PlayerSpeedUpdate], SpeedoMeter[PlayerOnlineID[PlayerSpeedUpdate]]);
-		}
-		else
+	for(new i; i<MAX_PLAYERS; i++)
+    {
+		if(IsPlayerConnected(i))
 		{
-  			TextDrawHideForPlayer(PlayerOnlineID[PlayerSpeedUpdate], SpeedoMeter[PlayerOnlineID[PlayerSpeedUpdate]]);
-		}
 
+            new Float:speed_x, Float:speed_y, Float:speed_z;
+            if(IsPlayerInAnyVehicle(i))
+            {
+            	GetVehicleVelocity(GetPlayerVehicleID(i), speed_x, speed_y, speed_z);
+			    new speedstring[128];
+			    new Float:cor_x, Float:cor_y, Float:cor_z;
+				GetPlayerPos(i,cor_x, cor_y, cor_z);
+				new PlayerSpeed = floatround(floatsqroot(((speed_x * speed_x) + (speed_y * speed_y)) + (speed_z * speed_z)) * 158.179, floatround_round);
+	  			format(speedstring, sizeof(speedstring), "Speed: %3d km/h~n~Height: %.2f",PlayerSpeed,cor_z);
+	    		TextDrawSetString(SpeedoMeter[i], speedstring);
+	    		TextDrawShowForPlayer(i, SpeedoMeter[i]);
+	    		
+	    		
+
+				if(PlayerOldSpeed[i] >= PlayerSpeed+75)
+				{
+				 	new Float:health;
+	   			 	GetPlayerHealth(i,health);
+				    SetPlayerHealth(i, health-(PlayerSpeed));
+				}
+				PlayerOldSpeed[i] = PlayerSpeed;
+
+				}
+				else
+				{
+				    TextDrawHideForPlayer(i, SpeedoMeter[i]);
+				}
+
+
+
+		}
     }
 
-    
-	if(PlayerSpeedUpdate >= PlayersOnline)
-	{
-	    PlayerSpeedUpdate=0;
-	}
-    PlayerSpeedUpdate++;
 
 
-    
-    SetTimer("SpeedoUpdate", 100, false);
+    SetTimer("SpeedoUpdate", floatround(200+(PlayersOnline*70), floatround_round), false);
+
     return 1;
 }
 
