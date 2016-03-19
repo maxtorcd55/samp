@@ -1,4 +1,4 @@
-new VehName[213][] =
+stock VehName[213][] =
 {
         {"Landstalker"},
         {"Bravura"},
@@ -214,3 +214,57 @@ new VehName[213][] =
         {"Utility Trailer"},
         {""}
 };
+
+
+
+stock decode_lights(lights, &light1, &light2, &light3, &light4)
+{
+    light1 = lights & 1;
+    light2 = lights >> 1 & 1;
+    light3 = lights >> 2 & 1;
+    light4 = lights >> 3 & 1;
+}
+ 
+stock decode_panels(panels, &front_bumper, &rear_bumper)
+{
+    front_bumper= panels >> 20 & 15;
+    rear_bumper = panels >> 24 & 15;
+}
+ 
+stock decode_doors(doors, &bonnet, &boot, &driver_door, &passenger_door)
+{
+    bonnet = doors & 7;
+    boot = doors >> 8 & 7;
+    driver_door = doors >> 16 & 7;
+    passenger_door = doors >> 24 & 7;
+}
+ 
+stock decode_tires(tires, &tire1, &tire2, &tire3, &tire4)
+{
+    tire1 = tires & 1;
+    tire2 = tires >> 1 & 1;
+    tire3 = tires >> 2 & 1;
+    tire4 = tires >> 3 & 1;
+}
+ 
+stock encode_tires(tire1, tire2, tire3, tire4)
+{
+	return tire1 | (tire2 << 1) | (tire3 << 2) | (tire4 << 3);
+}
+ 
+stock encode_panels(flp, frp, rlp, rrp, windshield, front_bumper, rear_bumper)
+{
+    return flp | (frp << 4) | (rlp << 8) | (rrp << 12) | (windshield << 16) | (front_bumper << 20) | (rear_bumper << 24);
+}
+ 
+stock encode_doors(bonnet, boot, driver_door, passenger_door, behind_driver_door, behind_passenger_door)
+{
+    #pragma unused behind_driver_door
+    #pragma unused behind_passenger_door
+    return bonnet | (boot << 8) | (driver_door << 16) | (passenger_door << 24);
+}
+ 
+stock encode_lights(light1, light2, light3, light4)
+{
+    return light1 | (light2 << 1) | (light3 << 2) | (light4 << 3);
+}

@@ -10,10 +10,12 @@
 
 forward GetPlayerLoc(index, response_code, data[]);
 
+new weathertimer;
+
 #define dcmd(%1,%2,%3) if (!strcmp((%3)[1], #%1, true, (%2)) && ((((%3)[(%2) + 1] == '\0') && (dcmd_%1(playerid, ""))) || (((%3)[(%2) + 1] == ' ') && (dcmd_%1(playerid, (%3)[(%2) + 2]))))) return 1
 
 new Float:Speedlimit;
-
+new DB: someDB;
 
 main()
 {
@@ -23,9 +25,13 @@ main()
 
 public OnGameModeInit()
 {
+    someDB = db_open("test.db");
+    //db_free_result(db_query(someDB, "CREATE TABLE IF NOT EXISTS `players`(`name` VARCHAR(24) PRIMARY KEY ,`password` VARCHAR(24), 'adminlevel' int, 'money' int, 'score' int)"));
+    
     djson_GameModeInit();
 	AddPlayerClass(0, 2046.4917,1335.0630,10.6719, 269.1425, 0, 0, 0, 0, 0, 0);
 	EnableStuntBonusForAll(0);
+	ManualVehicleEngineAndLights();
 	return 1;
 }
 
@@ -42,9 +48,10 @@ public OnPlayerRequestClass(playerid, classid)
 
 public OnPlayerConnect(playerid)
 {
+    TogglePlayerClock(playerid, 1);
+
+
     new count = GetTickCount();
-
-
     new fileString[64];
 	format(fileString,sizeof(fileString),"players/%s.ini",GetPlyName(playerid));
 	
@@ -201,6 +208,12 @@ public OnPlayerCommandText(playerid, cmdtext[])
 			SetVehicleVirtualWorld(Veh,GetPlayerVirtualWorld(playerid));
 			PutPlayerInVehicle(playerid,Veh,0);
 			SetVehicleHealth(Veh, 9999999999);
+
+			new engine, lights, alarm, doors, bonnet, boot, objective;
+    		GetVehicleParamsEx(Veh, engine, lights, alarm, doors, bonnet, boot, objective);
+    		SetVehicleParamsEx(Veh, 1, 1, 0, doors, bonnet, boot, objective);
+    		
+    		UpdateVehicleDamageStatus(Veh, 0, 0, 0, 0);
 			
 			new string[64];
 			format(string,sizeof(string),"Vehicle spawned [%s]",VehName[VehModel-400]);
@@ -266,7 +279,7 @@ public OnPlayerCommandText(playerid, cmdtext[])
 	    
 	
 	
-	
+	    djson_GameModeExit();
 	    SendClientMessageToAll(0xFF00FFAA, "Server restarting in 5 seconds...");
 	    SetTimer("RestartServer", 5000, false);
 		return 1;
@@ -371,8 +384,86 @@ public OnPlayerCommandText(playerid, cmdtext[])
 		return 1;
 	}
 	
+	if(!strcmp("/setdb", cmd, true))
+	{
+	    new password[16];
+	    if(!sscanf(params, "s" ,password))
+		{
+		    db_free_result(db_query(someDB, "CREATE TABLE IF NOT EXISTS `players`(`name` VARCHAR(24) PRIMARY KEY ,`password` VARCHAR(24))"));
+
+
+			new szQuery[109], szPlayerName[MAX_PLAYER_NAME];
+			GetPlayerName(playerid, szPlayerName, MAX_PLAYER_NAME);
+			format(szQuery, sizeof(szQuery), "INSERT INTO players (`name`,`password`) VALUES ('%s','%q')",szPlayerName, password);
+			db_free_result(db_query(someDB, szQuery));
+  		}
+  		else
+  		{
+  		    SendClientMessage(playerid, 0xFF0000AA, "/setdb <text>");
+  		}
+		return 1;
+	}
+	
+	if(!strcmp("/updb", cmd, true))
+	{
+	    new password[16];
+	    if(!sscanf(params, "s" ,password))
+		{
+			new szQuery[109], szPlayerName[MAX_PLAYER_NAME];
+			GetPlayerName(playerid, szPlayerName, MAX_PLAYER_NAME);
+			format(szQuery, sizeof(szQuery), "UPDATE players SET password = '%s' WHERE name = '%q'", password,szPlayerName);
+			db_free_result(db_query(someDB, szQuery));
+  		}
+  		else
+  		{
+  		    SendClientMessage(playerid, 0xFF0000AA, "/setdb <text>");
+  		}
+		return 1;
+	}
+	
+	if(!strcmp("/getdb", cmd, true))
+	{
+		new szQuery[79], DBResult: query, szPlayerName[MAX_PLAYER_NAME];
+
+		GetPlayerName(playerid, szPlayerName, MAX_PLAYER_NAME);
+		format(szQuery, sizeof(szQuery), "select password from players where name = '%q'", szPlayerName);
+		query = db_query(someDB, szQuery);
+		if(db_num_rows(query)) {
+		    new pass[16];
+			db_get_field(query, 0, pass, sizeof pass);
+			SendClientMessage(playerid, 0xFF0000AA, pass);
+			 // Clear the results saved in memory because we don't need them, they're in szOut
+		}
+        db_free_result(query);
+
+		return 1;
+	}
+	
+	if(!strcmp("/weer", cmd, true))
+	{
+        weathertimer = SetTimer("weer", 500, true);
+
+		return 1;
+	}
+
+	if(!strcmp("/stopweer", cmd, true))
+	{
+        KillTimer(weathertimer);
+		return 1;
+	}
+	
 	return 0;
 }
+
+new weers;
+
+forward weer();
+public weer()
+{
+    SetWeather(weers++);
+    printf("%d",weers);
+}
+
 
 forward RestartServer();
 public RestartServer()
@@ -512,6 +603,7 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 		}
 	}
 
+
 	return 1;
 }
 
@@ -593,6 +685,7 @@ public OnPlayerStreamOut(playerid, forplayerid)
 
 public OnVehicleStreamIn(vehicleid, forplayerid)
 {
+
 	return 1;
 }
 
